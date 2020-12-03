@@ -1,0 +1,160 @@
+---
+title: "ADA Class project"
+author: "Phionah Namatovu"
+date: "11/18/2020"
+output: html_document
+---
+
+## Install packages
+```{r}
+pacman::p_load(survminer,survival,ggsurv, tidyverse,lmtest,dplyr, ROCR, table1)
+library(readxl)
+library(haven)
+```
+
+#Loading data
+```{r}
+data <- read_csv("Final cases.csv") #load data
+```
+
+#Data cleaning and management
+```{r}
+data$event[data$`SEER cause-specific death classification`=="Alive or dead of other cause"]<-0
+data$event[data$`SEER cause-specific death classification`=="Dead (attributable to this cancer dx)"]<-1
+
+#Renaming variables
+data$surv_mo<-as.numeric(data$`Survival months`)
+data$insurance<-data$`Insurance Recode (2007+)`
+data$age<-data$`Age recode with <1 year olds`
+data$mstatus<-data$`Marital status at diagnosis`
+data$race<-data$`Race recode (White, Black, Other)`
+
+#Checking class of variables
+class(data$event)
+class(data$surv_mo)
+class(data$age)
+class(data$insurance)
+
+#Recoding age variable
+data$age_rec[data$age=="25-29 years
+"]<-1
+data$age_rec[data$age=="30-34 years
+"]<-2
+data$age_rec[data$age=="35-39 years
+"]<-3
+data$age_rec[data$age=="40-44 years
+"]<-4
+data$age_rec[data$age=="45-49 years
+"]<-5
+data$age_rec[data$age=="50-54 years
+"]<-6
+data$age_rec[data$age=="55-59 years
+"]<-7
+data$age_rec[data$age=="60-64 years
+"]<-8
+table(data$age_rec)
+
+#changing class of variables
+data$age<-as.factor(data$age)
+data$sex<-as.factor(data$Sex)
+class(data$age_rec)
+class(data$insurance)
+class(data$sex)
+
+#Removing missing values across variables
+data2<-data[which(data$age!="NA"),]
+data3<-data2[which(data2$insurance!="NA"),]
+data4<-data3[which(data3$event!="NA"),]
+data5<-data4[which(data4$surv_mo!="NA"),]
+data6<-data5[which(data5$Sex!="NA"),]
+data7<-data6[which(data6$race!="NA"),]
+data8<-data7[which(data7$mstatus!="NA"),]
+lbc<-data8
+lbc<-as.data.frame(lbc)
+
+#Recode insurance status as a factor variable and label it
+lbc$insurance_r[
+  lbc$insurance=="Insured"]<-0
+lbc$insurance_r[
+  lbc$insurance=="Insured/No specifics"]<-1
+lbc$insurance_r[
+ lbc$insurance=="Any Medicaid"]<-2
+lbc$insurance_r[
+  lbc$insurance=="Uninsured"]<-3
+lbc$insurance_r<-factor(lbc$insurance_r,
+      levels = c(0,1,2,3),
+      labels = c("Insured", "Insured/No specifics", "Any Medicaid", "Uninsured"))
+```
+
+#Descriptive statistics
+```{r}
+table(lbc$Sex)
+#Slightly more than half of the population was male, (n=60137, 54.9%).
+table(lbc$race)
+#Largest percentage of the sample was White (n=84622, 77.3%), followed by Blacks (n=17140, 15.7%)
+table(lbc$mstatus)
+#More than half the sample was married (n=57352, 52.4%),and 23.5% (n=25731) were single.
+table(lbc$insurance_r)
+```
+
+#Cox proportional hazards regression
+```{r}
+##Univariate cox model
+status.mod<-coxph(Surv(surv_mo, event)~insurance_r, lbc)
+summary(status.mod)
+#The uninsured participants had a 1.651 (95% CI 1.608-1.694) times higher hazard of death than the insured participants.
+
+## Adjusting the Cox model for age
+status_adj.mod<-coxph(Surv(surv_mo, event)~insurance_r + age, lbc)
+summary(status_adj.mod)
+##Adjusting for age, the uninsured participants had a 1.678 (95% CI 1.634-1.723) times higher hazard of death than the insured participants.
+
+## Adjusting the Cox model for sex
+status_adj.mod1<-coxph(Surv(surv_mo, event)~insurance_r + sex, lbc)
+summary(status_adj.mod1)
+##Adjusting for sex, the uninsured participants had a 1.626 (95% CI 1.584-1.67) times higher hazard of death than the insured participants.
+
+## Adjusting the Cox model for race
+status_adj.mod2<-coxph(Surv(surv_mo, event)~insurance_r + race, lbc)
+summary(status_adj.mod2)
+##Adjusting for race, the uninsured participants had a 1.6363 (95% CI 1.5938-1.68) times higher hazard of death than the insured participants.
+```
+
+#Model fit
+```{r}
+lrtest(status.mod, status_adj.mod)
+lrtest(status.mod, status_adj.mod1)
+lrtest(status.mod, status_adj.mod2)
+#The likelihood ratio test indicates that the model that includes age, sex and race significantly improves fit compared to the unadjusted model  (p=2.2e-16). 
+```
+
+## Including an interaction term in the model 
+```{r}
+status_int.mod<-coxph(Surv(surv_mo, event)~insurance_r + age + insurance_r*age, lbc)
+summary(status_int.mod)
+#Interpretation: There is no significant effect modification (p for interaction>0.05) of the HR for the association between insurance and death by lung and bronchus cancer by age.
+
+status_int.mod1<-coxph(Surv(surv_mo, event)~insurance_r + sex + insurance_r*sex, lbc)
+summary(status_int.mod1)
+#Interpretation: There is a significant effect modification (p for interaction=0.0354) of the HR for the association between insurance and death by lung and bronchus cancer for the interaction between uninsured and gender.
+
+status_int.mod2<-coxph(Surv(surv_mo, event)~insurance_r + race + insurance_r*race, lbc)
+summary(status_int.mod2)
+#Interpretation: There is only a significant effect modification (p for interaction>0.05) of the HR for the association between insurance and death by lung and bronchus cancer for the interaction between insured and insured/no specifics for the White and other race.
+
+```
+
+#Plotting survival curves
+```{r}
+ggadjustedcurves(status_adj.mod, data = lbc, variable = "insurance_r", conf.int = FALSE, ggtheme = theme_minimal(), tables.theme = clean_theme())
+```
+
+
+#Descriptives Table
+```{r}
+table(lbc$`Year of diagnosis`)
+table1(~age + sex + race + mstatus + surv_mo + insurance_r, lbc)
+```
+
+
+
