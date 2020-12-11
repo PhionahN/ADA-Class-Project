@@ -156,5 +156,23 @@ table(lbc$`Year of diagnosis`)
 table1(~age + sex + race + mstatus + surv_mo + insurance_r, lbc)
 ```
 
+```{r}
+#Stratifying the Cox model by sex
+strat.mod1<-coxph(Surv(surv_mo, event)~insurance_r, data = lbc, subset = (sex == "Male")) 
+summary(strat.mod1)
+##Stratifying for sex, the male uninsured participants had a 1.56 (95% CI 1.51-1.61) times higher hazard of death than the male insured participants.
 
+strat.mod3<-coxph(Surv(surv_mo, event)~insurance_r, data = lbc, subset = (sex == "Female")) 
+summary(strat.mod3)
+##Stratifying for sex, the female uninsured participants had a 1.74 (95% CI 1.67-1.81) times higher hazard of death than the female insured participants.
+
+#Adjusting for age for the stratified sex variable
+strat.mod2<-coxph(Surv(surv_mo, event)~insurance_r + age, data = lbc, subset = (sex == "Male")) 
+summary(strat.mod2)
+##Adjusting for age, the male uninsured participants had a 1.59 (95% CI 1.53-1.64) times higher hazard of death than the male insured participants.
+
+strat.mod4<-coxph(Surv(surv_mo, event)~insurance_r + age, data = lbc, subset = (sex == "Female")) 
+summary(strat.mod4)
+##Adjusting for age, the female uninsured participants had a 1.75 (95% CI 1.68-1.83) times higher hazard of death than the female insured participants.
+```
 
