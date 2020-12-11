@@ -155,7 +155,7 @@ ggadjustedcurves(status_adj.mod, data = lbc, variable = "insurance_r", conf.int 
 table(lbc$`Year of diagnosis`)
 table1(~age + sex + race + mstatus + surv_mo + insurance_r, lbc)
 ```
-
+#Stratifying by sex
 ```{r}
 #Stratifying the Cox model by sex
 strat.mod1<-coxph(Surv(surv_mo, event)~insurance_r, data = lbc, subset = (sex == "Male")) 
